@@ -44,6 +44,30 @@
     max-width:520px;margin:0 auto;
   }
 
+  #page{
+    flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+  }
+  #page.in-l{animation:pgL .26s cubic-bezier(.22,.9,.28,1) both}
+  #page.in-r{animation:pgR .26s cubic-bezier(.22,.9,.28,1) both}
+  @keyframes pgL{from{transform:translateX(34px);opacity:.25}to{transform:none;opacity:1}}
+  @keyframes pgR{from{transform:translateX(-34px);opacity:.25}to{transform:none;opacity:1}}
+
+  /* ---------- budget bar ---------- */
+  .topbar{
+    flex:0 0 auto;display:flex;align-items:center;gap:12px;
+    padding-bottom:14px;min-height:22px;
+  }
+  .bname{
+    font-size:15px;font-weight:600;letter-spacing:-.01em;
+    flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .dots{display:flex;gap:6px;flex:0 0 auto}
+  .dots button{
+    width:7px;height:7px;border-radius:4px;background:var(--hair);
+    transition:background .2s,width .2s;
+  }
+  .dots button.on{background:var(--txt);width:18px}
+
   /* ---------- readout ---------- */
   .readout{flex:0 0 auto;padding-bottom:18px}
   .cycle{font-size:13px;color:var(--dim);letter-spacing:.01em;margin-bottom:6px}
@@ -65,6 +89,7 @@
     background:var(--ok);
     transition:height .5s cubic-bezier(.22,.9,.28,1),background-color .35s ease;
   }
+  .fill.noanim{transition:none}
   .fill.warn{background:var(--warn)}
   .fill.over{background:var(--over)}
   .mark{
@@ -154,6 +179,34 @@
   .sw.on{background:var(--ok)}
   .sw.on i{transform:translateX(20px);background:#14231C}
 
+  .field.stack{display:block}
+  .swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-top:12px}
+  .swatches button{
+    aspect-ratio:1;border-radius:11px;position:relative;
+    border:1.5px solid rgba(255,255,255,.12);
+  }
+  .swatches button.on{border-color:var(--txt)}
+  .swatches button.on::after{
+    content:"";position:absolute;inset:0;margin:auto;width:8px;height:8px;
+    border-radius:5px;background:var(--txt);
+  }
+
+  .sechead{margin:22px 0 4px;font-size:15px;font-weight:600}
+  .brow{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    padding:12px 0;border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .brow i{width:20px;height:20px;border-radius:7px;flex:0 0 auto;border:1.5px solid rgba(255,255,255,.14)}
+  .brow span{flex:1 1 auto;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brow em{font-style:normal;font-size:12.5px;color:var(--dim);flex:0 0 auto}
+  .act{
+    width:100%;height:48px;margin-top:12px;border-radius:14px;font-size:15px;font-weight:600;
+    background:rgba(255,255,255,.06);color:var(--txt);
+  }
+  .act:active{background:rgba(255,255,255,.12)}
+  .act.warn{color:var(--over);font-weight:500}
+  .act[disabled]{opacity:.35}
+
   .totals{display:flex;gap:10px;margin-bottom:6px}
   .totals div{flex:1 1 0;background:rgba(255,255,255,.05);border-radius:14px;padding:12px 14px}
   .totals .k{font-size:12.5px;color:var(--dim)}
@@ -183,6 +236,12 @@
 <body>
 
 <div id="app">
+ <div id="page">
+  <div class="topbar">
+    <div class="bname" id="bname">Budget</div>
+    <div class="dots" id="dots"></div>
+  </div>
+
   <div class="readout">
     <div class="cycle" id="cycle">Since —</div>
     <div class="amount"><span class="sym" id="sym1">$</span><span id="spent">0</span></div>
@@ -205,6 +264,7 @@
       <button class="ghost" id="bSet">Settings</button>
     </div>
   </div>
+ </div>
 </div>
 
 <div class="scrim" id="scrim"></div>
@@ -225,6 +285,15 @@
   <button class="close" data-close>Done</button>
 
   <div class="field">
+    <label for="fName">Name</label>
+    <input type="text" id="fName" maxlength="24" autocomplete="off" placeholder="Budget">
+  </div>
+  <div class="field stack">
+    <label>Background</label>
+    <div class="swatches" id="swatches"></div>
+  </div>
+
+  <div class="field">
     <label for="fLimit">Budget<span class="hint">Where the bar is full</span></label>
     <input type="text" id="fLimit" inputmode="numeric" autocomplete="off">
   </div>
@@ -241,6 +310,10 @@
     <button class="sw" id="fDec" role="switch" aria-label="Use decimals"><i></i></button>
   </div>
 
+  <div class="sechead">Budgets</div>
+  <div id="blist"></div>
+  <button class="act" id="bAdd">Add another budget</button>
+  <button class="act warn" id="bDel">Delete this budget</button>
 </div>
 
 <!-- log -->
@@ -252,6 +325,14 @@
     <div><div class="k">Received</div><div class="v inc" id="tIn">$0</div></div>
   </div>
   <div id="hist"></div>
+</div>
+
+<!-- delete budget confirm -->
+<div class="sheet dlg" id="delSheet" role="dialog" aria-modal="true">
+  <h2 id="delTitle">Delete this budget?</h2>
+  <p id="delBody">Its entries and settings go with it. Your other budgets are untouched.</p>
+  <button class="danger" id="delOk">Delete</button>
+  <button class="cancel" id="delCancel">Cancel</button>
 </div>
 
 <!-- reset confirm -->
@@ -266,31 +347,77 @@
 (function(){
   "use strict";
 
+  /* ---------- themes ---------- */
+  var THEMES = {
+    slate:  {bg:"#1B2734", track:"#22303F", sheet:"#1F2C3A", hair:"#35485C"},
+    ink:    {bg:"#14161C", track:"#1F222B", sheet:"#191C23", hair:"#333846"},
+    ocean:  {bg:"#102630", track:"#17333F", sheet:"#132C37", hair:"#2C4F5F"},
+    forest: {bg:"#152720", track:"#1E352C", sheet:"#192E26", hair:"#2F5244"},
+    moss:   {bg:"#222616", track:"#2F341F", sheet:"#282D1A", hair:"#4A5233"},
+    ember:  {bg:"#26190F", track:"#352416", sheet:"#2D1E13", hair:"#563A22"},
+    wine:   {bg:"#261419", track:"#351D24", sheet:"#2D171E", hair:"#552d38"},
+    plum:   {bg:"#221830", track:"#2E2140", sheet:"#271C37", hair:"#463360"}
+  };
+  var THEME_ORDER = ["slate","ink","ocean","forest","moss","ember","wine","plum"];
+
   /* ---------- storage (falls back to memory if unavailable) ---------- */
-  var KEY = "spendbar.v1";
+  var KEY = "spendbar.v2", OLDKEY = "spendbar.v1";
   var mem = null;
-  function load(){
-    try{ var r = localStorage.getItem(KEY); if(r) return JSON.parse(r); }
-    catch(e){ if(mem) return JSON.parse(mem); }
-    if(mem) return JSON.parse(mem);
-    return null;
+
+  function readKey(k){
+    try{ var r = localStorage.getItem(k); return r ? JSON.parse(r) : null; }
+    catch(e){ return null; }
   }
   function save(){
-    var s = JSON.stringify(state);
+    var s = JSON.stringify(db);
     mem = s;
     try{ localStorage.setItem(KEY, s); }catch(e){}
   }
 
-  var state = load() || {
-    limit: 2000000,
-    warn: 1500000,
-    sym: "$",
-    dec: false,
-    start: Date.now(),
-    entries: []
-  };
-  if(!Array.isArray(state.entries)) state.entries = [];
-  if(!state.start) state.start = Date.now();
+  function uid(){ return Date.now().toString(36) + Math.round(Math.random()*1e6).toString(36); }
+
+  function blank(name, theme){
+    return {
+      id: uid(), name: name || "Budget", theme: theme || "slate",
+      limit: 2000000, warn: 1500000, sym: "$", dec: false,
+      start: Date.now(), entries: []
+    };
+  }
+  function fix(b){
+    if(!b.id) b.id = uid();
+    if(typeof b.name !== "string" || b.name === "") b.name = "Budget";
+    if(!THEMES[b.theme]) b.theme = "slate";
+    if(!Array.isArray(b.entries)) b.entries = [];
+    if(!b.start) b.start = Date.now();
+    if(!(b.limit > 0)) b.limit = 2000000;
+    if(!(b.warn >= 0)) b.warn = 0;
+    if(typeof b.sym !== "string" || b.sym === "") b.sym = "$";
+    b.dec = !!b.dec;
+    return b;
+  }
+
+  function loadAll(){
+    var d = readKey(KEY) || (mem ? JSON.parse(mem) : null);
+    if(d && Array.isArray(d.budgets) && d.budgets.length){
+      d.budgets = d.budgets.map(fix);
+      d.active = Math.max(0, Math.min(d.budgets.length - 1, d.active | 0));
+      return d;
+    }
+    /* carry over a single budget saved by the previous version */
+    var old = readKey(OLDKEY);
+    if(old){
+      var b = fix({
+        id: uid(), name: "Budget", theme: "slate",
+        limit: old.limit, warn: old.warn, sym: old.sym, dec: old.dec,
+        start: old.start, entries: old.entries
+      });
+      return { v:2, active:0, budgets:[b] };
+    }
+    return { v:2, active:0, budgets:[blank("Budget")] };
+  }
+
+  var db = loadAll();
+  var state = db.budgets[db.active];   /* the budget on screen */
 
   /* ---------- helpers ---------- */
   var $ = function(id){ return document.getElementById(id); };
@@ -334,8 +461,36 @@
     return String(s == null ? "" : s).replace(/\s+/g," ").trim().slice(0,60);
   }
 
+  function applyTheme(){
+    var t = THEMES[state.theme] || THEMES.slate;
+    var r = document.documentElement.style;
+    r.setProperty("--bg", t.bg);
+    r.setProperty("--track", t.track);
+    r.setProperty("--sheet", t.sheet);
+    r.setProperty("--hair", t.hair);
+    var m = document.querySelector('meta[name="theme-color"]');
+    if(m) m.setAttribute("content", t.bg);
+  }
+
+  function paintDots(){
+    var box = $("dots");
+    box.innerHTML = "";
+    if(db.budgets.length < 2) return;
+    db.budgets.forEach(function(b, i){
+      var d = document.createElement("button");
+      if(i === db.active) d.className = "on";
+      d.setAttribute("aria-label", b.name);
+      d.addEventListener("click", function(){ jump(i); });
+      box.appendChild(d);
+    });
+  }
+
   /* ---------- render ---------- */
   function render(){
+    applyTheme();
+    $("bname").textContent = state.name;
+    paintDots();
+
     var spent = net();
     var limit = Math.max(1, state.limit);
     var pct = Math.max(0, Math.min(1, spent / limit));
@@ -367,6 +522,55 @@
       mark.hidden = true;
     }
   }
+
+  /* ---------- switching between budgets ---------- */
+  function show(i, dir){
+    if(i < 0 || i >= db.budgets.length || i === db.active) return;
+    db.active = i;
+    state = db.budgets[i];
+    save();
+
+    var fill = $("fill");
+    fill.classList.add("noanim");     /* don't animate the bar across a switch */
+    render();
+    void fill.offsetWidth;
+    fill.classList.remove("noanim");
+
+    var pg = $("page");
+    pg.classList.remove("in-l","in-r");
+    void pg.offsetWidth;
+    pg.classList.add(dir > 0 ? "in-l" : "in-r");
+  }
+  function go(dir){
+    if(db.budgets.length < 2) return;
+    show((db.active + dir + db.budgets.length) % db.budgets.length, dir);
+  }
+  function jump(i){
+    if(i === db.active) return;
+    show(i, i > db.active ? 1 : -1);
+    if(openSheet === $("setSheet")) openSettings();
+  }
+
+  var sx = 0, sy = 0, swiping = false;
+  var appEl = $("app");
+  appEl.addEventListener("touchstart", function(e){
+    if(openSheet || e.touches.length !== 1){ swiping = false; return; }
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; swiping = true;
+  }, {passive:true});
+  appEl.addEventListener("touchend", function(e){
+    if(!swiping) return;
+    swiping = false;
+    var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    if(Math.abs(dx) < 55) return;                  /* too small to mean it */
+    if(Math.abs(dx) < Math.abs(dy) * 1.5) return;  /* mostly vertical */
+    go(dx < 0 ? 1 : -1);
+  }, {passive:true});
+
+  document.addEventListener("keydown", function(e){
+    if(openSheet) return;
+    if(e.key === "ArrowRight") go(1);
+    else if(e.key === "ArrowLeft") go(-1);
+  });
 
   /* ---------- sheets ---------- */
   var openSheet = null;
@@ -474,13 +678,62 @@
   }
   function raw(n){ return state.dec ? String(n) : String(Math.round(n)); }
 
+  var swatchEls = {};
+  (function buildSwatches(){
+    var box = $("swatches");
+    THEME_ORDER.forEach(function(k){
+      var b = document.createElement("button");
+      b.style.background = THEMES[k].bg;
+      b.setAttribute("aria-label", k);
+      b.addEventListener("click", function(){
+        state.theme = k;
+        save(); render(); markSwatch(); paintBudgets();
+      });
+      box.appendChild(b);
+      swatchEls[k] = b;
+    });
+  })();
+  function markSwatch(){
+    THEME_ORDER.forEach(function(k){
+      swatchEls[k].className = (k === state.theme) ? "on" : "";
+    });
+  }
+
+  function paintBudgets(){
+    var box = $("blist");
+    box.innerHTML = "";
+    db.budgets.forEach(function(b, i){
+      var row = document.createElement("button");
+      row.className = "brow";
+
+      var dot = document.createElement("i");
+      dot.style.background = (THEMES[b.theme] || THEMES.slate).bg;
+
+      var nm = document.createElement("span");
+      nm.textContent = b.name;
+
+      row.appendChild(dot); row.appendChild(nm);
+      if(i === db.active){
+        var tag = document.createElement("em");
+        tag.textContent = "on screen";
+        row.appendChild(tag);
+      }
+      row.addEventListener("click", function(){ jump(i); });
+      box.appendChild(row);
+    });
+    $("bDel").disabled = db.budgets.length < 2;
+  }
+
   function refreshFields(){
     $("fLimit").value = fmt(state.limit);
     $("fWarn").value  = fmt(state.warn);
   }
   function openSettings(){
     refreshFields();
+    $("fName").value = state.name;
     $("fSym").value = state.sym;
+    markSwatch();
+    paintBudgets();
     $("fDec").classList.toggle("on", !!state.dec);
     $("fDec").setAttribute("aria-checked", state.dec ? "true" : "false");
     open($("setSheet"));
@@ -490,12 +743,24 @@
     var l = parseNum($("fLimit").value);
     var w = parseNum($("fWarn").value);
     var s = $("fSym").value.trim();
+    var n = $("fName").value.replace(/\s+/g," ").trim().slice(0,24);
+    state.name = n === "" ? "Budget" : n;
     state.limit = (l > 0) ? l : state.limit;
     state.warn  = (w >= 0) ? w : state.warn;
     if(state.warn > state.limit) state.warn = state.limit;
     state.sym = s === "" ? "$" : s;
     save(); render();
   }
+  $("fName").addEventListener("blur", function(){ commitSettings(); paintBudgets(); });
+  $("fName").addEventListener("focus", function(){
+    var el = this; setTimeout(function(){ el.select(); }, 10);
+  });
+  ["fName","fSym"].forEach(function(id){
+    $(id).addEventListener("keydown", function(e){
+      if(e.key === "Enter"){ e.preventDefault(); this.blur(); }
+    });
+  });
+
   ["fLimit","fWarn","fSym"].forEach(function(id){
     $(id).addEventListener("blur", function(){ commitSettings(); refreshFields(); });
     $(id).addEventListener("focus", function(){
@@ -577,10 +842,45 @@
   $("bSet").addEventListener("click", openSettings);
   $("bLog").addEventListener("click", function(){ paintLog(); open($("logSheet")); });
 
+  /* ---------- add / delete a budget ---------- */
+  $("bAdd").addEventListener("click", function(){
+    commitSettings();
+    var used = {};
+    db.budgets.forEach(function(b){ used[b.theme] = true; });
+    var pick = "slate";
+    for(var i=0;i<THEME_ORDER.length;i++){
+      if(!used[THEME_ORDER[i]]){ pick = THEME_ORDER[i]; break; }
+    }
+    db.budgets.push(blank("Budget " + (db.budgets.length + 1), pick));
+    save();
+    show(db.budgets.length - 1, 1);
+    openSettings();
+    $("fName").focus();
+    $("fName").select();
+  });
+
+  $("bDel").addEventListener("click", function(){
+    if(db.budgets.length < 2) return;
+    commitSettings();
+    $("delTitle").textContent = "Delete " + state.name + "?";
+    $("delBody").textContent = state.entries.length
+      ? "Its " + state.entries.length + " entries and its settings go with it. Your other budgets are untouched."
+      : "It has no entries. Your other budgets are untouched.";
+    open($("delSheet"));
+  });
+  $("delOk").addEventListener("click", function(){
+    if(db.budgets.length < 2) return;
+    db.budgets.splice(db.active, 1);
+    db.active = Math.max(0, Math.min(db.budgets.length - 1, db.active));
+    state = db.budgets[db.active];
+    save(); render(); close();
+  });
+  $("delCancel").addEventListener("click", function(){ openSettings(); });
+
   /* ---------- reset ---------- */
   $("bReset").addEventListener("click", function(){
     $("resetBody").textContent = state.entries.length
-      ? "This clears all " + state.entries.length + " entries and empties the bar. Your budget and warning stay as they are."
+      ? "This clears all " + state.entries.length + " entries in " + state.name + " and empties the bar. Your budget and warning stay as they are."
       : "The bar is already empty. This just restarts the date it counts from.";
     open($("resetSheet"));
   });
