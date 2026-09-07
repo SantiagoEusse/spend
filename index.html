@@ -88,7 +88,7 @@
   .big:active{transform:scale(.97)}
   .big.expense{background:var(--txt);color:#16212C}
   .big.income{border:1.5px solid var(--hair);color:var(--txt)}
-  .minor{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .minor{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .ghost{height:42px;font-size:15px;color:var(--dim);border-radius:12px}
   .ghost:active{color:var(--txt)}
 
@@ -114,10 +114,19 @@
   .entry{
     display:flex;align-items:baseline;justify-content:center;gap:4px;
     font-size:44px;font-weight:700;letter-spacing:-.03em;
-    padding:6px 0 20px;min-height:70px;
+    padding:6px 0 16px;min-height:70px;
   }
   .entry .sym{font-size:.5em;font-weight:600;color:var(--dim)}
   .entry.empty{color:var(--hair)}
+  .note{
+    width:100%;height:48px;margin:0 0 12px;padding:0 14px;
+    border-radius:14px;background:rgba(255,255,255,.05);
+    border:1px solid transparent;color:var(--txt);
+    font:inherit;font-size:15px;
+    -webkit-user-select:text;user-select:text;
+  }
+  .note::placeholder{color:var(--dim)}
+  .note:focus{outline:none;border-color:var(--hair);background:rgba(255,255,255,.09)}
   .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .key{
     height:58px;border-radius:14px;background:rgba(255,255,255,.05);
@@ -145,13 +154,21 @@
   .sw.on{background:var(--ok)}
   .sw.on i{transform:translateX(20px);background:#14231C}
 
-  .histhead{margin:22px 0 4px;font-size:15px;font-weight:600}
+  .totals{display:flex;gap:10px;margin-bottom:6px}
+  .totals div{flex:1 1 0;background:rgba(255,255,255,.05);border-radius:14px;padding:12px 14px}
+  .totals .k{font-size:12.5px;color:var(--dim)}
+  .totals .v{font-size:17px;font-weight:600;margin-top:3px}
+  .totals .v.inc{color:var(--ok)}
+  .daysep{margin:18px 0 2px;font-size:12.5px;font-weight:600;color:var(--dim);letter-spacing:.02em;text-transform:uppercase}
   .empty{padding:16px 0;font-size:14px;color:var(--dim)}
   .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06)}
-  .row .val{font-size:16px;font-weight:600;flex:0 0 auto;min-width:34%}
+  .row .meta{flex:1 1 auto;min-width:0}
+  .row .desc{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .desc.none{color:var(--dim)}
+  .row .when{font-size:12.5px;color:var(--dim);margin-top:2px}
+  .row .val{font-size:16px;font-weight:600;flex:0 0 auto;text-align:right}
   .row .val.inc{color:var(--ok)}
-  .row .when{font-size:13px;color:var(--dim);flex:1 1 auto}
-  .row .del{font-size:20px;color:var(--dim);padding:0 4px;line-height:1}
+  .row .del{font-size:20px;color:var(--dim);padding:0 2px 0 4px;line-height:1;flex:0 0 auto}
 
   /* confirm dialog */
   .dlg p{font-size:14.5px;color:var(--dim);line-height:1.5;margin-bottom:18px}
@@ -183,6 +200,7 @@
       <button class="big income" id="bInc">Income</button>
     </div>
     <div class="minor">
+      <button class="ghost" id="bLog">Log</button>
       <button class="ghost" id="bReset">Reset</button>
       <button class="ghost" id="bSet">Settings</button>
     </div>
@@ -196,6 +214,7 @@
   <h2 id="padTitle">Add expense</h2>
   <button class="close" data-close>Cancel</button>
   <div class="entry empty" id="entry"><span class="sym" id="sym2">$</span><span id="entryVal">0</span></div>
+  <input class="note" type="text" id="padNote" maxlength="60" autocomplete="off" autocapitalize="sentences" placeholder="What was it for? (optional)" aria-label="Description">
   <div class="keys" id="keys"></div>
   <button class="confirm" id="padOk" disabled>Add</button>
 </div>
@@ -222,7 +241,16 @@
     <button class="sw" id="fDec" role="switch" aria-label="Use decimals"><i></i></button>
   </div>
 
-  <div class="histhead">Entries</div>
+</div>
+
+<!-- log -->
+<div class="sheet" id="logSheet" role="dialog" aria-modal="true">
+  <h2>Log</h2>
+  <button class="close" data-close>Done</button>
+  <div class="totals">
+    <div><div class="k">Spent</div><div class="v" id="tOut">$0</div></div>
+    <div><div class="k">Received</div><div class="v inc" id="tIn">$0</div></div>
+  </div>
   <div id="hist"></div>
 </div>
 
@@ -286,6 +314,24 @@
     var d = new Date(ts);
     return d.toLocaleDateString(undefined,{month:"short", day:"numeric"}) + ", " +
            d.toLocaleTimeString(undefined,{hour:"numeric", minute:"2-digit"});
+  }
+  function timeOf(ts){
+    return new Date(ts).toLocaleTimeString(undefined,{hour:"numeric", minute:"2-digit"});
+  }
+  function dayKey(ts){
+    var d = new Date(ts);
+    return d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
+  }
+  function dayLabel(ts){
+    var d = new Date(ts), now = new Date();
+    if(dayKey(ts) === dayKey(now.getTime())) return "Today";
+    if(dayKey(ts) === dayKey(now.getTime() - 86400000)) return "Yesterday";
+    var opts = {weekday:"short", month:"short", day:"numeric"};
+    if(d.getFullYear() !== now.getFullYear()) opts.year = "numeric";
+    return d.toLocaleDateString(undefined, opts);
+  }
+  function cleanNote(s){
+    return String(s == null ? "" : s).replace(/\s+/g," ").trim().slice(0,60);
   }
 
   /* ---------- render ---------- */
@@ -386,16 +432,28 @@
     dotKey.disabled = !state.dec;
     $("padTitle").textContent = kind === "expense" ? "Add expense" : "Add income";
     $("padOk").textContent = kind === "expense" ? "Add expense" : "Add income";
+    $("padNote").value = "";
+    $("padNote").placeholder = kind === "expense" ? "What was it for? (optional)" : "Where from? (optional)";
     paintEntry();
     open($("padSheet"));
   }
+
+  $("padNote").addEventListener("keydown", function(e){
+    if(e.key === "Enter"){ e.preventDefault(); this.blur(); }
+  });
 
   $("padOk").addEventListener("click", function(){
     var amt = parseFloat(buf);
     if(!(amt > 0)) return;
     if(!state.dec) amt = Math.round(amt);
-    state.entries.push({ id: Date.now() + "" + Math.round(Math.random()*999), type: mode, amount: amt, ts: Date.now() });
-    save(); render(); close();
+    state.entries.push({
+      id: Date.now() + "" + Math.round(Math.random()*999),
+      type: mode,
+      amount: amt,
+      note: cleanNote($("padNote").value),
+      ts: Date.now()
+    });
+    save(); render(); paintLog(); close();
   });
 
   $("bExp").addEventListener("click", function(){ openPad("expense"); });
@@ -425,7 +483,6 @@
     $("fSym").value = state.sym;
     $("fDec").classList.toggle("on", !!state.dec);
     $("fDec").setAttribute("aria-checked", state.dec ? "true" : "false");
-    paintHistory();
     open($("setSheet"));
   }
   function commitSettings(){
@@ -451,44 +508,74 @@
     state.dec = !state.dec;
     this.classList.toggle("on", state.dec);
     this.setAttribute("aria-checked", state.dec ? "true" : "false");
-    save(); render(); refreshFields(); paintHistory();
+    save(); render(); refreshFields(); paintLog();
   });
 
-  function paintHistory(){
+  function paintLog(){
     var box = $("hist");
+    var out = 0, inc = 0;
+    for(var i=0;i<state.entries.length;i++){
+      var it = state.entries[i];
+      if(it.type === "income") inc += it.amount; else out += it.amount;
+    }
+    $("tOut").textContent = money(out);
+    $("tIn").textContent  = money(inc);
+
     box.innerHTML = "";
     if(state.entries.length === 0){
-      box.innerHTML = '<div class="empty">Nothing yet. Add an expense to start filling the bar.</div>';
+      box.innerHTML = '<div class="empty">Nothing logged yet. Add an expense to start filling the bar.</div>';
       return;
     }
-    var list = state.entries.slice().reverse();
+
+    var list = state.entries.slice().sort(function(a,b){ return b.ts - a.ts; });
+    var day = null;
     list.forEach(function(e){
+      if(dayKey(e.ts) !== day){
+        day = dayKey(e.ts);
+        var h = document.createElement("div");
+        h.className = "daysep";
+        h.textContent = dayLabel(e.ts);
+        box.appendChild(h);
+      }
+
       var row = document.createElement("div");
       row.className = "row";
+
+      var meta = document.createElement("div");
+      meta.className = "meta";
+
+      var note = cleanNote(e.note);
+      var desc = document.createElement("div");
+      desc.className = "desc" + (note ? "" : " none");
+      desc.textContent = note || (e.type === "income" ? "Income" : "Expense");
+      desc.title = note;
+
+      var w = document.createElement("div");
+      w.className = "when";
+      w.textContent = timeOf(e.ts);
+
+      meta.appendChild(desc); meta.appendChild(w);
 
       var v = document.createElement("div");
       v.className = "val" + (e.type === "income" ? " inc" : "");
       v.textContent = (e.type === "income" ? "− " : "+ ") + money(e.amount);
 
-      var w = document.createElement("div");
-      w.className = "when";
-      w.textContent = shortDate(e.ts);
-
       var d = document.createElement("button");
       d.className = "del";
       d.textContent = "×";
-      d.setAttribute("aria-label", "Delete entry");
+      d.setAttribute("aria-label", "Delete " + (note || (e.type === "income" ? "income" : "expense")) + " of " + money(e.amount));
       d.addEventListener("click", function(){
         state.entries = state.entries.filter(function(x){ return x.id !== e.id; });
-        save(); render(); paintHistory();
+        save(); render(); paintLog();
       });
 
-      row.appendChild(v); row.appendChild(w); row.appendChild(d);
+      row.appendChild(meta); row.appendChild(v); row.appendChild(d);
       box.appendChild(row);
     });
   }
 
   $("bSet").addEventListener("click", openSettings);
+  $("bLog").addEventListener("click", function(){ paintLog(); open($("logSheet")); });
 
   /* ---------- reset ---------- */
   $("bReset").addEventListener("click", function(){
@@ -500,7 +587,7 @@
   $("resetOk").addEventListener("click", function(){
     state.entries = [];
     state.start = Date.now();
-    save(); render(); close();
+    save(); render(); paintLog(); close();
   });
 
   /* ---------- go ---------- */
